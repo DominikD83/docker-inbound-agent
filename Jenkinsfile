@@ -64,7 +64,7 @@ pipeline {
                 }
                 stage('Linux') {
                     agent {
-                        label "java-docker-slave"
+                        label "docker&&linux"
                     }
                     options {
                         timeout(time: 30, unit: 'MINUTES')
@@ -98,7 +98,24 @@ pipeline {
                                 }
                             }
                         }
-                        
+                        stage('Deploy to DockerHub') {
+                            // This stage is the "CD" and should only be run when a tag triggered the build
+                            when {
+                                buildingTag()
+                            }
+                            steps {
+                                script {
+                                    // This function is defined in the jenkins-infra/pipeline-library
+                                    infra.withDockerCredentials {
+                                        sh '''
+                                        export IMAGE_TAG="${TAG_NAME}"
+                                        export ON_TAG=true
+                                        docker buildx bake --push --file docker-bake.hcl linux
+                                        '''
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
